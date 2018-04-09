@@ -12,20 +12,27 @@
 #include "cv_camera.h"
 
 
-cv_camera::cv_camera(QWidget* parent) : QWidget(parent), m_cap(0) {
-    m_cap.set(cv::CAP_PROP_FRAME_WIDTH, 1920);
-    m_cap.set(cv::CAP_PROP_FRAME_HEIGHT, 1080);
-    m_v4l_device = open("/dev/video0", O_RDWR, 0);
+cv_camera::cv_camera(QWidget* parent) : QWidget(parent) {
+    m_cameras = QCameraInfo::availableCameras();
+    m_timer = new QTimer(this);
+    emit set_up_camera("/dev/video0");
+//    m_cap = cv::VideoCapture(0);
+//    m_cap.set(cv::CAP_PROP_FRAME_WIDTH, 1920);
+//    m_cap.set(cv::CAP_PROP_FRAME_HEIGHT, 1080);
+//    m_v4l_device = open("/dev/video0", O_RDWR, 0);
     m_zoom_slider = new QSlider(Qt::Horizontal, this);
+    m_combo_box = new QComboBox();
     m_zoom_slider->setMinimum(100);
     m_zoom_slider->setMaximum(500);
     m_cap_button = new QPushButton("capture");
     m_record_button = new QPushButton("record");
-    m_timer = new QTimer(this);
     m_label = new QLabel(this);
     m_label->setSizePolicy(QSizePolicy::Expanding,
                                     QSizePolicy::Expanding);
     m_label->setAlignment(Qt::AlignCenter);
+    for(auto&& info : m_cameras) {
+        m_combo_box->addItem(info.deviceName());
+    }
     this->setMinimumSize(640, 480);
 //    m_label->setMinimumSize(1280, 720);
     auto* layout1 = new QGridLayout;
@@ -33,13 +40,14 @@ cv_camera::cv_camera(QWidget* parent) : QWidget(parent), m_cap(0) {
     layout1->addWidget(m_zoom_slider);
     layout1->addWidget(m_cap_button);
     layout1->addWidget(m_record_button);
+    layout1->addWidget(m_combo_box);
     this->setLayout(layout1);
     QObject::connect(m_timer, SIGNAL(timeout()), this, SLOT(update_picture()));
     QObject::connect(m_zoom_slider, SIGNAL(valueChanged(int)), this, SLOT(change_zoom(int)));
     QObject::connect(m_cap_button, SIGNAL(clicked()), this, SLOT(capture()));
     QObject::connect(m_record_button, SIGNAL(clicked()), this, SLOT(record()));
-    m_timer->start(5);
-
+    QObject::connect(m_combo_box, SIGNAL(currentIndexChanged(const QString&)),
+                     this, SLOT(set_up_camera(const QString&)));
 }
 
 void cv_camera::update_picture() {
@@ -110,5 +118,16 @@ void cv_camera::record() {
         m_record_button->setText("record");
         m_cap_button->setDisabled(false);
     }
+}
+
+void cv_camera::set_up_camera(const QString& camera_name) {
+    m_timer->stop();
+    m_cap.release();
+    m_cap = cv::VideoCapture(camera_name.toStdString().back() - '0');
+    m_cap.set(cv::CAP_PROP_FRAME_WIDTH, 1920);
+    m_cap.set(cv::CAP_PROP_FRAME_HEIGHT, 1080);
+    m_v4l_device = open(camera_name.toStdString().c_str(), O_RDWR, 0);
+    m_timer->start(5);
+
 }
 

@@ -11,6 +11,8 @@
 #include <opencv2/videoio.hpp>
 #include <QSlider>
 #include <QPushButton>
+#include <QCameraInfo>
+#include <QComboBox>
 
 class cv_camera: public QWidget {
     Q_OBJECT
@@ -22,10 +24,12 @@ public slots:
     void change_zoom(int);
     void capture();
     void record();
+    void set_up_camera(const QString& camera_name);
 
 private:
 
     cv::Mat resize_keep_ar(const cv::Mat &input, const cv::Size &dstSize);
+
 
 private:
     QTimer* m_timer;
@@ -38,6 +42,8 @@ private:
     QPushButton* m_record_button;
     bool m_captured{false};
     bool m_record{false};
+    QList<QCameraInfo> m_cameras;
+    QComboBox* m_combo_box;
     size_t m_index{0};
 };
 
